@@ -1,0 +1,17 @@
+{
+  "name": "astrbot_plugin_emotion_pics",
+  "display_name": "情绪配图",
+  "short_desc": "按情绪给回复配图，图片和情绪在面板里管理",
+  "desc": "为回复自动配图：面板里上传图片并标注情绪，配置关键词后，说到对应情绪时有概率附上一张图。",
+  "version": "1.0.0",
+  "author": "DSH",
+  "repo": "https://github.com/XingMin0371/astrbot_plugin_emotion_pics",
+  "astrbot_version": ">=4.29.0",
+  "tags": [
+    "astrbot-plugin",
+    "astrbot",
+    "emotion",
+    "image",
+    "qq-bot"
+  ]
+}
