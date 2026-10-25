@@ -115,12 +115,18 @@ class EmotionPicsWebUI:
 
     def register(self) -> None:
         ctx = self.plugin.context
-        ctx.register_web_api("/emotion_pics/state", self._wrap(self.state), ["GET"], "图库状态")
-        ctx.register_web_api("/emotion_pics/upload", self._wrap(self.upload), ["POST"], "上传图片")
-        ctx.register_web_api("/emotion_pics/assign", self._wrap(self.assign), ["POST"], "设置情绪")
-        ctx.register_web_api("/emotion_pics/delete", self._wrap(self.delete), ["POST"], "删除图片")
-        ctx.register_web_api("/emotion_pics/emotion-save", self._wrap(self.emotion_save), ["POST"], "保存情绪词")
-        ctx.register_web_api("/emotion_pics/emotion-delete", self._wrap(self.emotion_delete), ["POST"], "删除情绪")
+        routes = [
+            ("state", self.state, ["GET"], "图库状态"),
+            ("upload", self.upload, ["POST"], "上传图片"),
+            ("assign", self.assign, ["POST"], "设置情绪"),
+            ("delete", self.delete, ["POST"], "删除图片"),
+            ("emotion-save", self.emotion_save, ["POST"], "保存情绪词"),
+            ("emotion-delete", self.emotion_delete, ["POST"], "删除情绪"),
+        ]
+        # 面板桥接按插件名拼路由；目录名和 metadata 名不一致时两个都注册
+        for prefix in ("/astrbot_plugin_emotion_pics", "/emotion_pics"):
+            for name, handler, methods, desc in routes:
+                ctx.register_web_api(f"{prefix}/{name}", self._wrap(handler), methods, desc)
 
     @staticmethod
     def _wrap(handler):
