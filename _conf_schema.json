@@ -1,0 +1,26 @@
+{
+  "enable": {
+    "description": "总开关",
+    "hint": "关掉后不再自动配图。",
+    "type": "bool",
+    "default": true
+  },
+  "probability": {
+    "description": "触发概率（%）",
+    "hint": "匹配到情绪后，按这个概率发图。0 就是永不发，100 就是每次都发。",
+    "type": "int",
+    "default": 30
+  },
+  "cooldown_minutes": {
+    "description": "同一会话冷却（分钟）",
+    "hint": "同一个人/群在这个时间内最多配一张图，默认 5 分钟。",
+    "type": "int",
+    "default": 5
+  },
+  "max_per_hour": {
+    "description": "每小时最多几张",
+    "hint": "全局上限，防止刷屏，默认 3。",
+    "type": "int",
+    "default": 3
+  }
+}
