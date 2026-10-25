@@ -12,7 +12,17 @@ from quart import Response, jsonify, request
 
 from astrbot.api import logger
 
-DATA_DIR = "/AstrBot/data/emotion_pics"
+def _plugin_data_dir() -> str:
+    env = os.environ.get("EMOTION_PICS_DATA")
+    if env:
+        return env
+    here = os.path.dirname(os.path.abspath(__file__))
+    plugins_dir = os.path.dirname(here)
+    data_dir = os.path.dirname(plugins_dir) if os.path.basename(plugins_dir) == "plugins" else "/AstrBot/data"
+    return os.path.join(data_dir, "plugin_data", "astrbot_plugin_emotion_pics")
+
+
+DATA_DIR = _plugin_data_dir()
 IMAGE_DIR = os.path.join(DATA_DIR, "images")
 THUMB_DIR = os.path.join(DATA_DIR, "thumbs")
 INDEX_PATH = os.path.join(DATA_DIR, "index.json")
