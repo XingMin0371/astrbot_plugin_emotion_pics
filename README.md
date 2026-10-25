@@ -44,8 +44,11 @@
 ```
 <数据目录>/plugin_data/astrbot_plugin_emotion_pics/
 ├─ images/
-└─ emotions.json
+├─ thumbs/
+└─ index.json
 ```
+
+从旧版本升级：第一次启动会自动把 `<数据目录>/emotion_pics/` 合并进来，旧目录清空，不用手动搬。
 
 ## 说点实话
 

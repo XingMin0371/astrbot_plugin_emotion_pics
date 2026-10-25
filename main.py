@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 import random
 import time
 
@@ -17,7 +18,47 @@ try:
 except Exception:  # pragma: no cover
     EmotionPicsWebUI = None  # type: ignore[assignment]
 
-DATA_DIR = "/AstrBot/data/emotion_pics"
+def _plugin_data_dir() -> str:
+    env = os.environ.get("EMOTION_PICS_DATA")
+    if env:
+        return env
+    here = os.path.dirname(os.path.abspath(__file__))
+    plugins_dir = os.path.dirname(here)
+    data_dir = os.path.dirname(plugins_dir) if os.path.basename(plugins_dir) == "plugins" else "/AstrBot/data"
+    return os.path.join(data_dir, "plugin_data", "astrbot_plugin_emotion_pics")
+
+
+def _migrate_legacy_layout() -> None:
+    """旧版把图库放在 data/emotion_pics，启动时搬到 plugin_data。"""
+    legacy = "/AstrBot/data/emotion_pics"
+    if not os.path.isdir(legacy) or os.path.abspath(legacy) == os.path.abspath(DATA_DIR):
+        return
+    ensure_dir(DATA_DIR)
+
+    def merge(src: str, dst: str) -> None:
+        if os.path.isdir(src):
+            ensure_dir(dst)
+            for child in os.listdir(src):
+                merge(os.path.join(src, child), os.path.join(dst, child))
+            try:
+                os.rmdir(src)
+            except OSError:
+                pass
+        elif not os.path.exists(dst):
+            try:
+                shutil.move(src, dst)
+            except OSError:
+                pass
+
+    for name in os.listdir(legacy):
+        merge(os.path.join(legacy, name), os.path.join(DATA_DIR, name))
+    try:
+        os.rmdir(legacy)
+    except OSError:
+        pass
+
+
+DATA_DIR = _plugin_data_dir()
 INDEX_PATH = os.path.join(DATA_DIR, "index.json")
 IMAGE_DIR = os.path.join(DATA_DIR, "images")
 
@@ -62,7 +103,7 @@ def save_index(data: dict) -> None:
     os.replace(tmp, INDEX_PATH)
 
 
-@register("emotion_pics", "DSH", "情绪配图：按情绪给回复配一张图", "1.0.0")
+@register("emotion_pics", "DSH", "情绪配图：按情绪给回复配一张图", "1.0.1")
 class EmotionPics(Star):
     def __init__(self, context: Context, config=None) -> None:
         super().__init__(context)
@@ -121,6 +162,7 @@ class EmotionPics(Star):
         return len(window) < self._int("max_per_hour", 3)
 
     async def initialize(self) -> None:
+        _migrate_legacy_layout()
         load_index()
         if EmotionPicsWebUI is not None:
             try:
