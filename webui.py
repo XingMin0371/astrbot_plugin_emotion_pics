@@ -39,6 +39,15 @@ DEFAULT_EMOTIONS = {
 }
 
 
+def _safe_image_path(name: str) -> str:
+    base = os.path.basename(str(name or ""))
+    path = os.path.join(IMAGE_DIR, base)
+    root = os.path.abspath(IMAGE_DIR)
+    if not os.path.abspath(path).startswith(root + os.sep):
+        raise ValueError("非法图片路径")
+    return path
+
+
 def ensure_dir(path: str) -> None:
     os.makedirs(path, exist_ok=True)
 
@@ -130,7 +139,7 @@ class EmotionPicsWebUI:
         data = load_index()
         images = []
         for item in data.get("images", []):
-            path = os.path.join(IMAGE_DIR, item.get("file", ""))
+            path = _safe_image_path(item.get("file", ""))
             if not os.path.isfile(path):
                 continue
             images.append({

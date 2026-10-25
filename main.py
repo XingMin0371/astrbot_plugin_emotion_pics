@@ -103,7 +103,7 @@ def save_index(data: dict) -> None:
     os.replace(tmp, INDEX_PATH)
 
 
-@register("emotion_pics", "DSH", "情绪配图：按情绪给回复配一张图", "1.0.1")
+@register("emotion_pics", "DSH", "情绪配图：按情绪给回复配一张图", "1.0.2")
 class EmotionPics(Star):
     def __init__(self, context: Context, config=None) -> None:
         super().__init__(context)
