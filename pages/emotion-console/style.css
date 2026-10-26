@@ -65,3 +65,9 @@ button:disabled { opacity: .6; cursor: default; }
 .pic-toolbar .pick { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); }
 
 .pic-tag { max-width: 75%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.row.center { justify-content: center; align-items: center; }
+.pager .hint { min-width: 160px; text-align: center; }
+
+.row.center label { align-items: center; text-align: center; }
+#newEmotion { text-align: center; }
