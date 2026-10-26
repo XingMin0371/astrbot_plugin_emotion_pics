@@ -23,6 +23,9 @@
           <label>情绪
             <select id="uploadEmotion"></select>
           </label>
+          <label>标签（可选）
+            <input id="uploadTags" type="text" placeholder="猫, 搞笑, 表情包" />
+          </label>
           <label>图片
             <input id="fileInput" type="file" accept="image/*" />
           </label>
@@ -34,8 +37,34 @@
       <div id="status" class="status"></div>
 
       <section>
-        <div class="meta">图库（<span id="imageCount">0</span> 张）</div>
+        <div class="meta">图库（<span id="imageCount">0</span> 张，从未使用 <span id="neverUsed">0</span>）</div>
+        <div class="row">
+          <input id="searchInput" type="text" placeholder="搜情绪 / 文件名 / 标签" />
+          <select id="tagSelect"><option value="">全部标签</option></select>
+          <button id="searchBtn" type="button">搜索</button>
+          <button id="selectAllBtn" type="button">全选本页</button>
+          <button id="bulkDeleteBtn" type="button">删除选中</button>
+          <button id="trashBtn" type="button">回收站（<span id="trashCount">0</span>）</button>
+          <details class="more">
+            <summary>更多</summary>
+            <div class="more-menu">
+              <button id="backupBtn" type="button">整包备份</button>
+              <button id="restoreBackupBtn" type="button">从最新备份恢复</button>
+              <button id="exportBtn" type="button">导出索引</button>
+              <label class="file-label">导入索引（仅元数据）
+                <input id="importInput" type="file" accept="application/json" hidden />
+              </label>
+            </div>
+          </details>
+        </div>
         <div id="grid" class="grid"></div>
+        <div class="row">
+          <button id="prevPage" type="button">上一页</button>
+          <span id="pageInfo" class="hint"></span>
+          <button id="nextPage" type="button">下一页</button>
+          <button id="loadMore" type="button">加载更多</button>
+        </div>
+        <div id="trashBox" class="list"></div>
       </section>
 
       <section class="card">

@@ -1,26 +1,83 @@
 {
-  "enable": {
-    "description": "总开关",
-    "hint": "关掉后不再自动配图。",
-    "type": "bool",
-    "default": true
+  "basic": {
+    "description": "基础",
+    "hint": "总开关、概率、冷却和每小时上限",
+    "type": "object",
+    "items": {
+      "enable": {
+        "description": "总开关",
+        "hint": "关掉后不再自动配图。",
+        "type": "bool",
+        "default": true
+      },
+      "probability": {
+        "description": "触发概率（%）",
+        "hint": "匹配到情绪后，按这个概率发图。0 就是永不发，100 就是每次都发。",
+        "type": "int",
+        "default": 30
+      },
+      "cooldown_minutes": {
+        "description": "同一会话冷却（分钟）",
+        "hint": "同一个人/群在这个时间内最多配一张图，默认 5 分钟。",
+        "type": "int",
+        "default": 5
+      },
+      "max_per_hour": {
+        "description": "每小时最多几张",
+        "hint": "全局上限，防止刷屏，默认 3。",
+        "type": "int",
+        "default": 3
+      }
+    }
   },
-  "probability": {
-    "description": "触发概率（%）",
-    "hint": "匹配到情绪后，按这个概率发图。0 就是永不发，100 就是每次都发。",
-    "type": "int",
-    "default": 30
+  "upload": {
+    "description": "上传与存储",
+    "hint": "WebP、元数据清理和回收站保留",
+    "type": "object",
+    "items": {
+      "auto_webp": {
+        "description": "上传自动转 WebP",
+        "hint": "压缩静态图，GIF 不动；默认关闭",
+        "type": "bool",
+        "default": false
+      },
+      "clean_metadata": {
+        "description": "清理 EXIF/IPTC/XMP",
+        "hint": "上传时去掉图片元数据，默认关闭",
+        "type": "bool",
+        "default": false
+      },
+      "trash_days": {
+        "description": "回收站保留天数",
+        "hint": "删除的图片放回收站，到期自动清理；1-30 天",
+        "type": "int",
+        "default": 7
+      }
+    }
   },
-  "cooldown_minutes": {
-    "description": "同一会话冷却（分钟）",
-    "hint": "同一个人/群在这个时间内最多配一张图，默认 5 分钟。",
-    "type": "int",
-    "default": 5
-  },
-  "max_per_hour": {
-    "description": "每小时最多几张",
-    "hint": "全局上限，防止刷屏，默认 3。",
-    "type": "int",
-    "default": 3
+  "blacklist": {
+    "description": "不使用配图",
+    "hint": "群、个人、时段三类；留空表示都使用",
+    "type": "object",
+    "items": {
+      "blacklist_groups": {
+        "description": "不使用配图的群",
+        "hint": "填群号，每行一个",
+        "type": "list",
+        "default": []
+      },
+      "blacklist_users": {
+        "description": "不使用配图的个人",
+        "hint": "填用户 ID / QQ，每行一个",
+        "type": "list",
+        "default": []
+      },
+      "blacklist_ranges": {
+        "description": "不使用配图的时段",
+        "hint": "格式 23:00-07:00，每行一个",
+        "type": "list",
+        "default": []
+      }
+    }
   }
 }

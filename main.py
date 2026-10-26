@@ -22,17 +22,31 @@ def _plugin_data_dir() -> str:
     env = os.environ.get("EMOTION_PICS_DATA")
     if env:
         return env
+    env_root = os.environ.get("ASTRBOT_DATA")
+    if env_root:
+        return os.path.join(env_root, "plugin_data", "astrbot_plugin_emotion_pics")
     here = os.path.dirname(os.path.abspath(__file__))
-    plugins_dir = os.path.dirname(here)
-    data_dir = os.path.dirname(plugins_dir) if os.path.basename(plugins_dir) == "plugins" else "/AstrBot/data"
-    return os.path.join(data_dir, "plugin_data", "astrbot_plugin_emotion_pics")
+    cur = here
+    for _ in range(8):
+        if os.path.basename(cur) == "plugins":
+            return os.path.join(os.path.dirname(cur), "plugin_data", "astrbot_plugin_emotion_pics")
+        parent = os.path.dirname(cur)
+        if parent == cur:
+            break
+        cur = parent
+    try:
+        from astrbot.core.utils.astrbot_path import get_astrbot_plugin_data_path
+        return os.path.realpath(os.path.join(get_astrbot_plugin_data_path(), "astrbot_plugin_emotion_pics"))
+    except Exception:  # noqa: BLE001
+        pass
+    return os.path.join(os.path.dirname(here), "plugin_data", "astrbot_plugin_emotion_pics")
 
 
 def _migrate_legacy_layout() -> None:
     """旧版把图库放在 data/emotion_pics，启动时搬到 plugin_data。"""
-    data_root = os.path.dirname(os.path.dirname(DATA_DIR))
     if os.path.basename(os.path.dirname(DATA_DIR)) != "plugin_data":
-        data_root = "/AstrBot/data"
+        return
+    data_root = os.path.dirname(os.path.dirname(DATA_DIR))
     legacy = os.path.join(data_root, "emotion_pics")
     if not os.path.isdir(legacy) or os.path.abspath(legacy) == os.path.abspath(DATA_DIR):
         return
@@ -74,16 +88,33 @@ DEFAULT_EMOTIONS = {
     "害羞": ["羞", "脸红", "别夸", "不好意思", "嘿嘿"],
 }
 
-TEXT_EMOJI = {}
+def _safe_image_path(name: str) -> str:
+    base_name = os.path.basename(str(name or ""))
+    path = os.path.join(IMAGE_DIR, base_name)
+    root = os.path.abspath(IMAGE_DIR)
+    if not os.path.abspath(path).startswith(root + os.sep):
+        raise ValueError("非法图片路径")
+    return path
 
 
 def ensure_dir(path: str) -> None:
     os.makedirs(path, exist_ok=True)
 
 
+_INDEX_CACHE = {"key": None, "data": None}
+
+
 def load_index() -> dict:
+    global _INDEX_CACHE
     ensure_dir(DATA_DIR)
     ensure_dir(IMAGE_DIR)
+    try:
+        st = os.stat(INDEX_PATH)
+        key = (st.st_mtime_ns, st.st_size)
+    except OSError:
+        key = None
+    if key is not None and _INDEX_CACHE.get("key") == key:
+        return _INDEX_CACHE["data"]
     try:
         with open(INDEX_PATH, encoding="utf-8") as fh:
             data = json.load(fh)
@@ -92,9 +123,12 @@ def load_index() -> dict:
     if not isinstance(data, dict):
         data = {}
     data.setdefault("images", [])
+    data.setdefault("trash", [])
     emotions = data.get("emotions")
     if not isinstance(emotions, dict) or not emotions:
         data["emotions"] = {k: list(v) for k, v in DEFAULT_EMOTIONS.items()}
+    if key is not None:
+        _INDEX_CACHE = {"key": key, "data": data}
     return data
 
 
@@ -104,9 +138,14 @@ def save_index(data: dict) -> None:
     with open(tmp, "w", encoding="utf-8") as fh:
         json.dump(data, fh, ensure_ascii=False, indent=2)
     os.replace(tmp, INDEX_PATH)
+    try:
+        st = os.stat(INDEX_PATH)
+        _INDEX_CACHE = {"key": (st.st_mtime_ns, st.st_size), "data": data}
+    except OSError:
+        pass
 
 
-@register("emotion_pics", "DSH", "情绪配图：按情绪给回复配一张图", "1.0.2")
+@register("emotion_pics", "DSH", "情绪配图：按情绪给回复配一张图", "1.1.3")
 class EmotionPics(Star):
     def __init__(self, context: Context, config=None) -> None:
         super().__init__(context)
@@ -117,7 +156,16 @@ class EmotionPics(Star):
 
     def _get(self, key, default):
         try:
-            value = self.config.get(key, default) if self.config else default
+            if not self.config:
+                return default
+            if key in self.config:
+                value = self.config[key]
+            else:
+                value = default
+                for group in self.config.values():
+                    if isinstance(group, dict) and key in group:
+                        value = group[key]
+                        break
         except Exception:
             return default
         return default if value is None else value
@@ -156,6 +204,37 @@ class EmotionPics(Star):
             return None
         return random.choice(pool)
 
+    def _in_blacklist(self, umo: str, sender: str = "") -> bool:
+        users = self._get("blacklist_users", []) or []
+        if isinstance(users, str):
+            users = [x.strip() for x in users.replace("，", ",").split(",")]
+        if sender and str(sender) in {str(x).strip() for x in users}:
+            return True
+        parts = str(umo or "").split(":")
+        group_id = parts[2] if len(parts) >= 3 and parts[1] == "GroupMessage" else ""
+        groups = self._get("blacklist_groups", []) or []
+        if isinstance(groups, str):
+            groups = [x.strip() for x in groups.replace("，", ",").split(",")]
+        if group_id and group_id in {str(x).strip() for x in groups}:
+            return True
+        ranges = self._get("blacklist_ranges", []) or []
+        if isinstance(ranges, str):
+            ranges = [x.strip() for x in ranges.replace("，", ",").split(",")]
+        now_min = time.localtime().tm_hour * 60 + time.localtime().tm_min
+        for item in ranges:
+            try:
+                start, end = str(item).split("-", 1)
+                sh, sm = [int(x) for x in start.strip().split(":")]
+                eh, em = [int(x) for x in end.strip().split(":")]
+                begin, finish = sh * 60 + sm, eh * 60 + em
+            except (ValueError, AttributeError):
+                continue
+            if begin <= finish and begin <= now_min < finish:
+                return True
+            if begin > finish and (now_min >= begin or now_min < finish):
+                return True
+        return False
+
     def _can_send(self, umo: str) -> bool:
         now = time.time()
         if now - self._last_sent.get(umo, 0) < self._int("cooldown_minutes", 5) * 60:
@@ -166,6 +245,11 @@ class EmotionPics(Star):
 
     async def initialize(self) -> None:
         _migrate_legacy_layout()
+        try:
+            days = max(1, min(30, int(self._get("trash_days", 7))))
+            os.environ["EMOTION_PICS_TRASH_DAYS"] = str(days)
+        except (TypeError, ValueError):
+            os.environ["EMOTION_PICS_TRASH_DAYS"] = "7"
         load_index()
         if EmotionPicsWebUI is not None:
             try:
@@ -197,6 +281,9 @@ class EmotionPics(Star):
             if not emotion:
                 return
             umo = getattr(event, "unified_msg_origin", "") or ""
+            sender = str(event.get_sender_id())
+            if self._in_blacklist(umo, sender):
+                return
             if not self._can_send(umo):
                 return
             if random.random() > self.probability:
@@ -204,10 +291,23 @@ class EmotionPics(Star):
             image = self.pick_image(emotion, data)
             if not image:
                 return
-            path = os.path.join(IMAGE_DIR, image.get("file", ""))
+            path = _safe_image_path(image.get("file", ""))
             if not os.path.isfile(path):
                 return
+            try:
+                from PIL import Image as PILImage
+
+                with PILImage.open(path) as probe:
+                    probe.verify()
+            except Exception:
+                logger.warning(f"emotion_pics: 跳过损坏或伪造的图片 {image.get('file')}")
+                return
             result.chain.append(Image.fromFileSystem(path))
+            try:
+                from .webui import record_usage
+                record_usage(image.get("id", ""))
+            except Exception:  # noqa: BLE001
+                pass
             self._last_sent[umo] = time.time()
             self._sent_times.append(time.time())
             logger.info(f"emotion_pics: 情绪 {emotion} 配图 {image.get('file')}")
