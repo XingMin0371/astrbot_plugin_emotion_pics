@@ -181,7 +181,11 @@ class EmotionPicsWebUI:
         image_id = uuid.uuid4().hex[:12]
         filename = f"{image_id}{ext}"
         ensure_dir(IMAGE_DIR)
-        await upload.save(os.path.join(IMAGE_DIR, filename))
+        target = os.path.join(IMAGE_DIR, filename)
+        await upload.save(target)
+        if os.path.getsize(target) > 8 * 1024 * 1024:
+            os.remove(target)
+            raise ValueError("图片超过 8MB")
         data = load_index()
         data["images"].append({
             "id": image_id,
