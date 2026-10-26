@@ -30,7 +30,10 @@ def _plugin_data_dir() -> str:
 
 def _migrate_legacy_layout() -> None:
     """旧版把图库放在 data/emotion_pics，启动时搬到 plugin_data。"""
-    legacy = "/AstrBot/data/emotion_pics"
+    data_root = os.path.dirname(os.path.dirname(DATA_DIR))
+    if os.path.basename(os.path.dirname(DATA_DIR)) != "plugin_data":
+        data_root = "/AstrBot/data"
+    legacy = os.path.join(data_root, "emotion_pics")
     if not os.path.isdir(legacy) or os.path.abspath(legacy) == os.path.abspath(DATA_DIR):
         return
     ensure_dir(DATA_DIR)

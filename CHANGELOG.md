@@ -4,6 +4,8 @@
 
 ## v1.0.2 — 2026-10-25
 
+- 面板接口同时注册 `/astrbot_plugin_emotion_pics/*` 与 `/emotion_pics/*`，修复改名后“未找到该路由”
+
 **安全**
 
 - 图库读取时只接受文件名，index 被篡改也无法越出 images 目录
