@@ -354,31 +354,59 @@ def _thumb_url(image_id: str, name: str = "") -> str:
 
 
 
+_HMAC_KEY_PATH = ""
+_ALLOW_NEW_KEY = False
+
+
+def _read_key(path: str) -> bytes:
+    raw = open(path, encoding="utf-8").read().strip()
+    key = bytes.fromhex(raw)
+    if len(key) != 32:
+        raise ValueError("HMAC key 长度不对")
+    return key
+
+
 def _hmac_secret() -> bytes:
+    global _HMAC_KEY_PATH
     key_dir = os.path.join(DATA_DIR, "keys")
     path = os.path.join(key_dir, "hmac.key")
     ensure_dir(key_dir)
-    if not os.path.isfile(path):
-        for legacy in (
-            os.path.join(DATA_DIR, "hmac.key"),
-            os.path.join(os.path.dirname(DATA_DIR), ".emotion_pics_keys", "hmac.key"),
-        ):
-            if os.path.isfile(legacy):
-                try:
-                    os.replace(legacy, path)
-                    break
-                except OSError:
-                    continue
-    try:
-        if os.path.isfile(path):
-            return bytes.fromhex(open(path, encoding="utf-8").read().strip())
-    except (OSError, ValueError):
-        pass
+    if _HMAC_KEY_PATH and os.path.isfile(_HMAC_KEY_PATH):
+        return _read_key(_HMAC_KEY_PATH)
+    if os.path.isfile(path):
+        _HMAC_KEY_PATH = path
+        return _read_key(path)
+    for legacy in (
+        os.path.join(DATA_DIR, "hmac.key"),
+        os.path.join(os.path.dirname(DATA_DIR), ".emotion_pics_keys", "hmac.key"),
+    ):
+        if not os.path.isfile(legacy):
+            continue
+        try:
+            shutil.copy2(legacy, path)
+            os.chmod(path, 0o600)
+            _HMAC_KEY_PATH = path
+            return _read_key(path)
+        except OSError:
+            try:
+                key = _read_key(legacy)
+                _HMAC_KEY_PATH = legacy
+                logger.warning("emotion_pics: 无法复制旧 HMAC key，继续使用旧路径")
+                return key
+            except (OSError, ValueError) as exc:
+                raise ValueError(f"旧 HMAC key 不可读或不可复制: {legacy}") from exc
+    if os.path.isfile(INDEX_PATH) and not _ALLOW_NEW_KEY:
+        try:
+            existing = json.load(open(INDEX_PATH, encoding="utf-8"))
+        except (OSError, ValueError):
+            existing = {}
+        if isinstance(existing, dict) and existing.get("hmac"):
+            raise ValueError("index.json 带 HMAC 但密钥丢失，请从备份恢复或手动恢复 keys/hmac.key")
     key = secrets.token_bytes(32)
-    ensure_dir(key_dir)
     fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
     with os.fdopen(fd, "w", encoding="utf-8") as fh:
         fh.write(key.hex())
+    _HMAC_KEY_PATH = path
     return key
 
 
@@ -782,7 +810,12 @@ class EmotionPicsWebUI:
         if not (os.path.isfile(target) or os.path.isdir(target)):
             raise ValueError("备份不存在")
         data = await asyncio.to_thread(self._restore_payload, target)
-        save_index(data)
+        global _ALLOW_NEW_KEY
+        _ALLOW_NEW_KEY = True
+        try:
+            save_index(data)
+        finally:
+            _ALLOW_NEW_KEY = False
         await asyncio.to_thread(self._rebuild_thumbs, data)
         return jsonify({"status": "ok"})
 
