@@ -3,12 +3,11 @@
 from __future__ import annotations
 
 import base64
-import io
 import json
 import os
 import uuid
 
-from quart import Response, jsonify, request
+from quart import jsonify, request
 
 from astrbot.api import logger
 
