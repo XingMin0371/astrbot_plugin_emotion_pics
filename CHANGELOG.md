@@ -2,13 +2,11 @@
 
 当前版本：**v1.1.3**
 
-## v1.1.4 — 2026-10-27
-
-- HMAC key 迁移增加复制回退：复制失败继续用旧路径，不再静默生成新 key
-- 索引带 HMAC 但 key 丢失时拒绝新 key，提示从备份/手动恢复
-- 从备份恢复时允许重新生成 HMAC key
-
 ## v1.1.3 — 2026-10-27
+
+- HMAC key 迁移增加复制回退，旧 key 不可复制时继续用旧路径
+- 索引带 HMAC 但 key 丢失时拒绝新 key，提示恢复
+
 
 - HMAC key 改到 plugin_data/astrbot_plugin_emotion_pics/keys，符合插件数据目录规范
 - 增量硬链接快照备份；恢复支持 snapshot/zip，并重建缩略图
