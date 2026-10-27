@@ -9,7 +9,6 @@ import hmac
 import secrets
 import zipfile
 import json
-import logging
 import os
 import re
 import shutil
@@ -24,23 +23,6 @@ from astrbot.api import logger
 MAX_PIXELS = 40_000_000
 
 
-class _EmoPathFilter(logging.Filter):
-    def filter(self, record):
-        if os.environ.get("EMOTION_PICS_LOG_ABSOLUTE") == "1":
-            return True
-        try:
-            msg = record.getMessage()
-            for key, label in ((DATA_DIR, "data"), (IMAGE_DIR, "images"), (THUMB_DIR, "thumbs")):
-                if key:
-                    msg = msg.replace(key + os.sep, label + "/").replace(key, label)
-            record.msg = msg
-            record.args = ()
-        except Exception:  # noqa: BLE001
-            pass
-        return True
-
-
-logger.addFilter(_EmoPathFilter())
 
 
 def _plugin_data_dir() -> str:
@@ -73,8 +55,33 @@ THUMB_DIR = os.path.join(DATA_DIR, "thumbs")
 TRASH_DIR = os.path.join(DATA_DIR, "trash")
 SHARD_DIR = os.path.join(DATA_DIR, "index_shards")
 SHARD_SIZE = 500
-PAGE_THUMB_DIR = os.path.join(os.path.dirname(__file__), "pages", "emotion-console", "thumbs")
 INDEX_PATH = os.path.join(DATA_DIR, "index.json")
+
+_orig_logger = logger
+
+
+class _SafeLogger:
+    def __getattr__(self, name):
+        attr = getattr(_orig_logger, name)
+        if name not in ("debug", "info", "warning", "error", "exception", "critical"):
+            return attr
+
+        def wrapped(msg, *args, **kwargs):
+            if os.environ.get("EMOTION_PICS_LOG_ABSOLUTE") != "1":
+                try:
+                    text = str(msg)
+                    for key, label in ((DATA_DIR, "data"), (IMAGE_DIR, "images"), (THUMB_DIR, "thumbs")):
+                        if key:
+                            text = text.replace(key + os.sep, label + "/").replace(key, label)
+                    msg = text
+                except Exception:  # noqa: BLE001
+                    pass
+            return attr(msg, *args, **kwargs)
+
+        return wrapped
+
+
+logger = _SafeLogger()
 
 ALLOWED = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp"}
 DEFAULT_EMOTIONS = {
@@ -279,7 +286,10 @@ def thumb_bytes(image_id: str, src: str) -> bytes:
         try:
             from PIL import Image as PILImage
 
+            PILImage.MAX_IMAGE_PIXELS = MAX_PIXELS
             with PILImage.open(src) as img:
+                if (img.width or 0) * (img.height or 0) > MAX_PIXELS:
+                    raise ValueError("图片像素过大")
                 img.seek(0)
                 img.convert("RGB").save(out, "JPEG", quality=80)
         except Exception as exc:  # noqa: BLE001
@@ -295,22 +305,6 @@ def thumb_bytes(image_id: str, src: str) -> bytes:
                 data = open(src, "rb").read()
         except OSError:
             data = b""
-    if data and src.lower().endswith(".gif"):
-        try:
-            ensure_dir(PAGE_THUMB_DIR)
-            gif_path = os.path.join(PAGE_THUMB_DIR, f"{_safe_id(image_id) or 'x'}.gif")
-            if not os.path.isfile(gif_path):
-                shutil.copyfile(src, gif_path)
-        except OSError:
-            pass
-    if data:
-        try:
-            ensure_dir(PAGE_THUMB_DIR)
-            page_path = os.path.join(PAGE_THUMB_DIR, os.path.basename(out))
-            if not os.path.isfile(page_path):
-                open(page_path, "wb").write(data)
-        except OSError:
-            pass
     if len(_THUMB_CACHE) > 256:
         _THUMB_CACHE.clear()
     _THUMB_CACHE[src] = (key[0], key[1], data)
@@ -337,20 +331,13 @@ def _trash_item(data: dict, image_id: str) -> bool:
     target["deleted_at"] = time.strftime("%Y-%m-%d %H:%M")
     target["deleted_ts"] = time.time()
     target["file"] = trash_name
-    try:
-        page_thumb = os.path.join(PAGE_THUMB_DIR, f"{_safe_id(image_id) or 'x'}.jpg")
-        if os.path.isfile(page_thumb):
-            os.remove(page_thumb)
-    except OSError:
-        pass
     data["images"] = keep
     data.setdefault("trash", []).append(target)
     return True
 
 
 def _thumb_url(image_id: str, name: str = "") -> str:
-    ext = ".gif" if str(name).lower().endswith(".gif") else ".jpg"
-    return f"./thumbs/{_safe_id(image_id) or 'x'}{ext}"
+    return ""
 
 
 
@@ -567,12 +554,11 @@ class EmotionPicsWebUI:
         start = (page - 1) * size
         images = []
         for item, emotion, tags, path in matched[start:start + size]:
-            content = await asyncio.to_thread(thumb_bytes, item.get("id", ""), path)
             images.append({
                 "id": item.get("id"), "file": item.get("file"), "emotion": emotion, "tags": tags,
                 "added_at": item.get("added_at", ""),
                 "used_count": int((usage.get(str(item.get("id"))) or {}).get("count") or 0),
-                "thumb": "", "url": _thumb_url(item.get("id"), item.get("file", "")),
+                "thumb": "", "url": "",
             })
         all_tags = sorted({str(t) for img in data.get("images", []) for t in img.get("tags", [])})
         return jsonify({
@@ -592,6 +578,9 @@ class EmotionPicsWebUI:
         for item in data.get("images", []):
             if item.get("id") == image_id:
                 path = _safe_image_path(item.get("file", ""))
+                if path.lower().endswith(".gif"):
+                    raw = await asyncio.to_thread(lambda: open(path, "rb").read())
+                    return jsonify({"status": "ok", "data": {"thumb": "data:image/gif;base64," + base64.b64encode(raw).decode()}})
                 content = await asyncio.to_thread(thumb_bytes, item.get("id", ""), path)
                 return jsonify({"status": "ok", "data": {"thumb": "data:image/jpeg;base64," + base64.b64encode(content).decode() if content else ""}})
         raise ValueError("没找到这张图")
@@ -825,7 +814,11 @@ class EmotionPicsWebUI:
                 shutil.copytree(target, tmp, dirs_exist_ok=True)
             else:
                 with zipfile.ZipFile(target) as z:
-                    z.extractall(tmp)
+                    for info in z.infolist():
+                        name = info.filename.replace("\\", "/")
+                        if name.startswith("/") or any(part == ".." for part in name.split("/")):
+                            raise ValueError("备份压缩包包含非法路径")
+                        z.extract(info, tmp)
             index_src = os.path.join(tmp, "index.json")
             if not os.path.isfile(index_src):
                 raise ValueError("备份里没有 index.json")
