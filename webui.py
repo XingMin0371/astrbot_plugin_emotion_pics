@@ -291,7 +291,8 @@ def thumb_bytes(image_id: str, src: str) -> bytes:
                 if (img.width or 0) * (img.height or 0) > MAX_PIXELS:
                     raise ValueError("图片像素过大")
                 img.seek(0)
-                img.convert("RGB").save(out, "JPEG", quality=80)
+                img.thumbnail((120, 120))
+                img.convert("RGB").save(out, "JPEG", quality=65)
         except Exception as exc:  # noqa: BLE001
             logger.debug(f"emotion_pics: 缩略图失败 {exc}")
     if os.path.isfile(out):
@@ -555,11 +556,13 @@ class EmotionPicsWebUI:
         start = (page - 1) * size
         images = []
         for item, emotion, tags, path in matched[start:start + size]:
+            content = await asyncio.to_thread(thumb_bytes, item.get("id", ""), path)
             images.append({
                 "id": item.get("id"), "file": item.get("file"), "emotion": emotion, "tags": tags,
                 "added_at": item.get("added_at", ""),
                 "used_count": int((usage.get(str(item.get("id"))) or {}).get("count") or 0),
-                "thumb": "", "url": "",
+                "thumb": "data:image/jpeg;base64," + base64.b64encode(content).decode() if content else "",
+                "url": "",
             })
         all_tags = sorted({str(t) for img in data.get("images", []) for t in img.get("tags", [])})
         return jsonify({
