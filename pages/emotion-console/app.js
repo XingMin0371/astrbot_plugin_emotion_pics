@@ -96,13 +96,12 @@ function renderGrid() {
     const img = document.createElement("img");
     img.alt = item.file || "";
     img.loading = "lazy";
-    img.src = item.url || item.thumb || "";
-    img.onerror = async () => {
+    (async () => {
       try {
         const data = await apiGet("thumb-data", { id: item.id });
         if (data && data.thumb) img.src = data.thumb;
       } catch (_) {}
-    };
+    })();
     const body = document.createElement("div");
     body.className = "body";
     const name = document.createElement("div");
