@@ -90,7 +90,6 @@ function renderGrid() {
     grid.innerHTML = '<div class="card">还没有图片，先在上面上传一张。</div>';
     return;
   }
-  const thumbImgs = {};
   for (const item of state.images) {
     const card = document.createElement("div");
     card.className = "pic";
@@ -98,7 +97,7 @@ function renderGrid() {
     img.alt = item.file || "";
     img.loading = "eager";
     img.decoding = "async";
-    thumbImgs[item.id] = img;
+    img.src = item.thumb || "";
     const body = document.createElement("div");
     body.className = "body";
     const name = document.createElement("div");
@@ -173,30 +172,6 @@ function renderGrid() {
     card.append(img, body);
     grid.appendChild(card);
   }
-  (async () => {
-    const ids = state.images.map((x) => x.id);
-    const loaded = new Set();
-    for (let i = 0; i < ids.length; i += 8) {
-      const chunk = ids.slice(i, i + 8);
-      try {
-        const data = await apiGet("thumbs-data", { ids: chunk.join(",") });
-        const map = (data && data.thumbs) || {};
-        for (const id of Object.keys(map)) {
-          if (thumbImgs[id]) {
-            thumbImgs[id].src = map[id];
-            loaded.add(id);
-          }
-        }
-      } catch (_) {}
-    }
-    for (const item of state.images) {
-      if (loaded.has(item.id) || !thumbImgs[item.id]) continue;
-      try {
-        const one = await apiGet("thumb-data", { id: item.id });
-        if (one && one.thumb) thumbImgs[item.id].src = one.thumb;
-      } catch (_) {}
-    }
-  })();
 }
 
 function renderEmotions() {
