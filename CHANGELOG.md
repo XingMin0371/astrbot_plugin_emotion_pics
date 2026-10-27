@@ -4,25 +4,30 @@
 
 ## v1.1.4 — 2026-10-27
 
-- 修复部分已知 BUG：
-  - PIL 像素上限常量实际未生效
-  - 备份 zip 解压缺少路径校验
-  - README 配图数量、概率说明与配置不一致
+**修复**
+
+- 修复部分已知 BUG
+
+**优化**
+
 - 缩略图缓存移出插件目录，只写数据目录 `thumbs/`
-- 面板改为按需取图；24 张并发请求部分失败会留空白，现改为一页一次批量 `thumbs-data`
-- 修复部分已知 BUG：部分图片缩略图不显示
+- 面板改为一页一次批量 `thumbs-data`，单张超时并补取缺失项
+- 首屏图片改为 eager，减少滚动前空白
 - 移除内置 logging 与路径 Filter，改为包装 AstrBot logger
 
 ## v1.1.3 — 2026-10-27
 
+**安全**
+
+- HMAC key 改到 `plugin_data/astrbot_plugin_emotion_pics/keys/`
 - HMAC key 迁移增加复制回退，旧 key 不可复制时继续用旧路径
 - 索引带 HMAC 但 key 丢失时拒绝新 key，提示恢复
 
+**优化**
 
-- HMAC key 改到 plugin_data/astrbot_plugin_emotion_pics/keys，符合插件数据目录规范
 - 增量硬链接快照备份；恢复支持 snapshot/zip，并重建缩略图
 - 恢复流程移到线程，分片恢复兼容新 part 格式
-- 清理旧备份/无用测试残留
+- 清理旧备份与无用测试残留
 
 ## v1.1.0 — 2026-10-27
 
