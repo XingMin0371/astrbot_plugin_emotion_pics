@@ -11,6 +11,11 @@ import time
 from astrbot.api import logger
 from astrbot.api.event import AstrMessageEvent, filter
 from astrbot.api.message_components import Image, Plain
+
+try:
+    from astrbot.api.message_components import TextPart
+except Exception:  # pragma: no cover
+    TextPart = None
 from astrbot.api.star import Context, Star, register
 
 try:
@@ -258,6 +263,25 @@ class EmotionPics(Star):
             except Exception as exc:  # pragma: no cover
                 logger.warning(f"emotion_pics: WebUI 注册失败 {exc}")
         logger.info("emotion_pics: 已启动")
+
+    @filter.on_llm_request()
+    async def tell_capability(self, event, req) -> None:
+        """让模型知道情绪配图已启用，不需要自己发图片。"""
+        try:
+            if not self.enabled or self.probability <= 0:
+                return
+            if getattr(event, "is_stopped", lambda: False)():
+                return
+            text = (
+                "【情绪配图】已启用：你正常回复即可，插件会按情绪自动配一张图。"
+                "需要表达情绪时直接说，不要声称自己不能发图片或表情包。"
+            )
+            if TextPart is not None:
+                req.extra_user_content_parts.append(TextPart(text=text).mark_as_temp())
+            else:
+                req.system_prompt = (req.system_prompt or "") + "\n\n" + text
+        except Exception as exc:  # noqa: BLE001
+            logger.debug(f"emotion_pics: 能力提示注入跳过 {type(exc).__name__}")
 
     @filter.on_decorating_result()
     async def attach_picture(self, event: AstrMessageEvent) -> None:
