@@ -96,7 +96,8 @@ function renderGrid() {
     card.className = "pic";
     const img = document.createElement("img");
     img.alt = item.file || "";
-    img.loading = "lazy";
+    img.loading = "eager";
+    img.decoding = "async";
     thumbImgs[item.id] = img;
     const body = document.createElement("div");
     body.className = "body";
@@ -179,6 +180,13 @@ function renderGrid() {
       const map = (data && data.thumbs) || {};
       for (const id of Object.keys(map)) {
         if (thumbImgs[id]) thumbImgs[id].src = map[id];
+      }
+      for (const item of state.images) {
+        if (map[item.id] || !thumbImgs[item.id]) continue;
+        try {
+          const one = await apiGet("thumb-data", { id: item.id });
+          if (one && one.thumb) thumbImgs[item.id].src = one.thumb;
+        } catch (_) {}
       }
     } catch (_) {
       for (const item of state.images) {
