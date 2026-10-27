@@ -13,7 +13,7 @@ from astrbot.api.event import AstrMessageEvent, filter
 from astrbot.api.message_components import Image, Plain
 
 try:
-    from astrbot.api.message_components import TextPart
+    from astrbot.core.agent.message import TextPart
 except Exception:  # pragma: no cover
     TextPart = None
 from astrbot.api.star import Context, Star, register
@@ -274,7 +274,7 @@ class EmotionPics(Star):
                 return
             text = (
                 "【情绪配图】已启用：你正常回复即可，插件会按情绪自动配一张图。"
-                "需要表达情绪时直接说，不要声称自己不能发图片或表情包。"
+                "需要表达情绪或使用表情包时可以调用这个插件。"
             )
             if TextPart is not None:
                 req.extra_user_content_parts.append(TextPart(text=text).mark_as_temp())
