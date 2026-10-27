@@ -586,13 +586,16 @@ class EmotionPicsWebUI:
             try:
                 path = _safe_image_path(item.get("file", ""))
                 if path.lower().endswith(".gif"):
-                    raw_bytes = await asyncio.to_thread(lambda p=path: open(p, "rb").read())
+                    raw_bytes = await asyncio.wait_for(
+                        asyncio.to_thread(lambda p=path: open(p, "rb").read()), timeout=8)
                     thumbs[image_id] = "data:image/gif;base64," + base64.b64encode(raw_bytes).decode()
                 else:
-                    content = await asyncio.to_thread(thumb_bytes, image_id, path)
+                    content = await asyncio.wait_for(
+                        asyncio.to_thread(thumb_bytes, image_id, path), timeout=8)
                     if content:
                         thumbs[image_id] = "data:image/jpeg;base64," + base64.b64encode(content).decode()
-            except (OSError, ValueError):
+            except Exception:  # noqa: BLE001
+                logger.debug(f"emotion_pics: 批量缩略图跳过 {image_id}")
                 continue
         return jsonify({"status": "ok", "data": {"thumbs": thumbs}})
 
