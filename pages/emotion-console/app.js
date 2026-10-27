@@ -90,18 +90,14 @@ function renderGrid() {
     grid.innerHTML = '<div class="card">还没有图片，先在上面上传一张。</div>';
     return;
   }
+  const thumbImgs = {};
   for (const item of state.images) {
     const card = document.createElement("div");
     card.className = "pic";
     const img = document.createElement("img");
     img.alt = item.file || "";
     img.loading = "lazy";
-    (async () => {
-      try {
-        const data = await apiGet("thumb-data", { id: item.id });
-        if (data && data.thumb) img.src = data.thumb;
-      } catch (_) {}
-    })();
+    thumbImgs[item.id] = img;
     const body = document.createElement("div");
     body.className = "body";
     const name = document.createElement("div");
@@ -176,6 +172,23 @@ function renderGrid() {
     card.append(img, body);
     grid.appendChild(card);
   }
+  (async () => {
+    try {
+      const ids = state.images.map((x) => x.id).join(",");
+      const data = await apiGet("thumbs-data", { ids });
+      const map = (data && data.thumbs) || {};
+      for (const id of Object.keys(map)) {
+        if (thumbImgs[id]) thumbImgs[id].src = map[id];
+      }
+    } catch (_) {
+      for (const item of state.images) {
+        try {
+          const data = await apiGet("thumb-data", { id: item.id });
+          if (data && data.thumb && thumbImgs[item.id]) thumbImgs[item.id].src = data.thumb;
+        } catch (_) {}
+      }
+    }
+  })();
 }
 
 function renderEmotions() {

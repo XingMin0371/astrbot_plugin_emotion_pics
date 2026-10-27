@@ -491,6 +491,7 @@ class EmotionPicsWebUI:
             ("state", self.state, ["GET"], "图库状态"),
             ("thumb", self.thumb, ["GET"], "缩略图"),
             ("thumb-data", self.thumb_data, ["GET"], "缩略图数据"),
+            ("thumbs-data", self.thumbs_data, ["GET"], "批量缩略图数据"),
             ("upload", self.upload, ["POST"], "上传图片"),
             ("assign", self.assign, ["POST"], "设置情绪"),
             ("delete", self.delete, ["POST"], "删除图片"),
@@ -571,6 +572,29 @@ class EmotionPicsWebUI:
                 "enabled": self.plugin.enabled,
             },
         })
+
+    async def thumbs_data(self):
+        raw = str(request.args.get("ids") or "").strip()
+        ids = [x for x in raw.split(",") if x][:60]
+        data = load_index()
+        by_id = {str(item.get("id")): item for item in data.get("images", [])}
+        thumbs = {}
+        for image_id in ids:
+            item = by_id.get(image_id)
+            if not item:
+                continue
+            try:
+                path = _safe_image_path(item.get("file", ""))
+                if path.lower().endswith(".gif"):
+                    raw_bytes = await asyncio.to_thread(lambda p=path: open(p, "rb").read())
+                    thumbs[image_id] = "data:image/gif;base64," + base64.b64encode(raw_bytes).decode()
+                else:
+                    content = await asyncio.to_thread(thumb_bytes, image_id, path)
+                    if content:
+                        thumbs[image_id] = "data:image/jpeg;base64," + base64.b64encode(content).decode()
+            except (OSError, ValueError):
+                continue
+        return jsonify({"status": "ok", "data": {"thumbs": thumbs}})
 
     async def thumb_data(self):
         image_id = str(request.args.get("id") or "").strip()
