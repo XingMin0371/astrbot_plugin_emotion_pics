@@ -174,27 +174,27 @@ function renderGrid() {
     grid.appendChild(card);
   }
   (async () => {
-    try {
-      const ids = state.images.map((x) => x.id).join(",");
-      const data = await apiGet("thumbs-data", { ids });
-      const map = (data && data.thumbs) || {};
-      for (const id of Object.keys(map)) {
-        if (thumbImgs[id]) thumbImgs[id].src = map[id];
-      }
-      for (const item of state.images) {
-        if (map[item.id] || !thumbImgs[item.id]) continue;
-        try {
-          const one = await apiGet("thumb-data", { id: item.id });
-          if (one && one.thumb) thumbImgs[item.id].src = one.thumb;
-        } catch (_) {}
-      }
-    } catch (_) {
-      for (const item of state.images) {
-        try {
-          const data = await apiGet("thumb-data", { id: item.id });
-          if (data && data.thumb && thumbImgs[item.id]) thumbImgs[item.id].src = data.thumb;
-        } catch (_) {}
-      }
+    const ids = state.images.map((x) => x.id);
+    const loaded = new Set();
+    for (let i = 0; i < ids.length; i += 8) {
+      const chunk = ids.slice(i, i + 8);
+      try {
+        const data = await apiGet("thumbs-data", { ids: chunk.join(",") });
+        const map = (data && data.thumbs) || {};
+        for (const id of Object.keys(map)) {
+          if (thumbImgs[id]) {
+            thumbImgs[id].src = map[id];
+            loaded.add(id);
+          }
+        }
+      } catch (_) {}
+    }
+    for (const item of state.images) {
+      if (loaded.has(item.id) || !thumbImgs[item.id]) continue;
+      try {
+        const one = await apiGet("thumb-data", { id: item.id });
+        if (one && one.thumb) thumbImgs[item.id].src = one.thumb;
+      } catch (_) {}
     }
   })();
 }
