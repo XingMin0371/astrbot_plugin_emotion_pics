@@ -291,8 +291,8 @@ def thumb_bytes(image_id: str, src: str) -> bytes:
                 if (img.width or 0) * (img.height or 0) > MAX_PIXELS:
                     raise ValueError("图片像素过大")
                 img.seek(0)
-                img.thumbnail((120, 120))
-                img.convert("RGB").save(out, "JPEG", quality=65)
+                img.thumbnail((180, 180))
+                img.convert("RGB").save(out, "JPEG", quality=75)
         except Exception as exc:  # noqa: BLE001
             logger.debug(f"emotion_pics: 缩略图失败 {exc}")
     if os.path.isfile(out):
