@@ -1,3 +1,4 @@
+// build 2026-10-27 sync-thumbs
 let bridge = window.AstrBotPluginPage;
 const $ = (id) => document.getElementById(id);
 

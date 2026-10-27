@@ -84,6 +84,8 @@ class _SafeLogger:
 logger = _SafeLogger()
 
 ALLOWED = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp"}
+_HMAC_KEY_PATH = ""
+_ALLOW_NEW_KEY = False
 DEFAULT_EMOTIONS = {
     "开心": ["哈哈", "笑死", "开森", "好耶", "太棒", "爽", "乐"],
     "温柔": ["乖", "摸摸", "抱抱", "辛苦", "别累着", "晚安", "亲亲"],
@@ -337,15 +339,6 @@ def _trash_item(data: dict, image_id: str) -> bool:
     return True
 
 
-def _thumb_url(image_id: str, name: str = "") -> str:
-    return ""
-
-
-
-_HMAC_KEY_PATH = ""
-_ALLOW_NEW_KEY = False
-
-
 def _read_key(path: str) -> bytes:
     raw = open(path, encoding="utf-8").read().strip()
     key = bytes.fromhex(raw)
@@ -490,9 +483,6 @@ class EmotionPicsWebUI:
         ctx = self.plugin.context
         routes = [
             ("state", self.state, ["GET"], "图库状态"),
-            ("thumb", self.thumb, ["GET"], "缩略图"),
-            ("thumb-data", self.thumb_data, ["GET"], "缩略图数据"),
-            ("thumbs-data", self.thumbs_data, ["GET"], "批量缩略图数据"),
             ("upload", self.upload, ["POST"], "上传图片"),
             ("assign", self.assign, ["POST"], "设置情绪"),
             ("delete", self.delete, ["POST"], "删除图片"),
@@ -575,56 +565,6 @@ class EmotionPicsWebUI:
                 "enabled": self.plugin.enabled,
             },
         })
-
-    async def thumbs_data(self):
-        raw = str(request.args.get("ids") or "").strip()
-        ids = [x for x in raw.split(",") if x][:60]
-        data = load_index()
-        by_id = {str(item.get("id")): item for item in data.get("images", [])}
-        thumbs = {}
-        for image_id in ids:
-            item = by_id.get(image_id)
-            if not item:
-                continue
-            try:
-                path = _safe_image_path(item.get("file", ""))
-                if path.lower().endswith(".gif"):
-                    raw_bytes = await asyncio.wait_for(
-                        asyncio.to_thread(lambda p=path: open(p, "rb").read()), timeout=8)
-                    thumbs[image_id] = "data:image/gif;base64," + base64.b64encode(raw_bytes).decode()
-                else:
-                    content = await asyncio.wait_for(
-                        asyncio.to_thread(thumb_bytes, image_id, path), timeout=8)
-                    if content:
-                        thumbs[image_id] = "data:image/jpeg;base64," + base64.b64encode(content).decode()
-            except Exception:  # noqa: BLE001
-                logger.debug(f"emotion_pics: 批量缩略图跳过 {image_id}")
-                continue
-        return jsonify({"status": "ok", "data": {"thumbs": thumbs}})
-
-    async def thumb_data(self):
-        image_id = str(request.args.get("id") or "").strip()
-        data = load_index()
-        for item in data.get("images", []):
-            if item.get("id") == image_id:
-                path = _safe_image_path(item.get("file", ""))
-                if path.lower().endswith(".gif"):
-                    raw = await asyncio.to_thread(lambda: open(path, "rb").read())
-                    return jsonify({"status": "ok", "data": {"thumb": "data:image/gif;base64," + base64.b64encode(raw).decode()}})
-                content = await asyncio.to_thread(thumb_bytes, item.get("id", ""), path)
-                return jsonify({"status": "ok", "data": {"thumb": "data:image/jpeg;base64," + base64.b64encode(content).decode() if content else ""}})
-        raise ValueError("没找到这张图")
-
-    async def thumb(self):
-        image_id = str(request.args.get("id") or "").strip()
-        data = load_index()
-        for item in data.get("images", []):
-            if item.get("id") == image_id:
-                path = _safe_image_path(item.get("file", ""))
-                content = thumb_bytes(item.get("id", ""), path)
-                if content:
-                    return Response(content, mimetype="image/jpeg")
-        raise ValueError("没找到这张图")
 
     async def upload(self):
         files = await request.files
