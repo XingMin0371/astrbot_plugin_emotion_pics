@@ -3,7 +3,7 @@
   "display_name": "情绪配图",
   "short_desc": "按情绪给回复配一张图，不刷屏",
   "desc": "文字聊天容易干。这个插件不改变回复内容，只在合适的情绪点补一张图：面板里传图、标情绪，配好关键词，说到对应情绪时按概率附上一张。图库在本地，不走第三方。",
-  "version": "1.1.6",
+  "version": "1.1.7",
   "author": "DSH",
   "repo": "https://github.com/XingMin0371/astrbot_plugin_emotion_pics",
   "astrbot_version": ">=4.29.0",
