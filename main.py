@@ -23,6 +23,23 @@ try:
 except Exception:  # pragma: no cover
     EmotionPicsWebUI = None  # type: ignore[assignment]
 
+
+def _temporary_text_part(text: str):
+    """兼容 make_as_temp / mark_as_temp；没有临时标记能力时不注入。"""
+    if TextPart is None:
+        return None
+    part = TextPart(text=text)
+    for name in ("make_as_temp", "mark_as_temp"):
+        marker = getattr(part, name, None)
+        if not callable(marker):
+            continue
+        try:
+            marked = marker()
+            return marked if marked is not None else part
+        except Exception:  # noqa: BLE001
+            continue
+    return None
+
 def _plugin_data_dir() -> str:
     env = os.environ.get("EMOTION_PICS_DATA")
     if env:
@@ -277,10 +294,9 @@ class EmotionPics(Star):
                 "【情绪配图】已启用：你正常回复即可，插件会按情绪自动配一张图。"
                 "需要表达情绪或使用表情包时可以调用这个插件。"
             )
-            if TextPart is not None:
-                req.extra_user_content_parts.append(TextPart(text=text).mark_as_temp())
-            else:
-                req.system_prompt = (req.system_prompt or "") + "\n\n" + text
+            part = _temporary_text_part(text)
+            if part is not None:
+                req.extra_user_content_parts.append(part)
         except Exception as exc:  # noqa: BLE001
             logger.debug(f"emotion_pics: 能力提示注入跳过 {type(exc).__name__}")
 
