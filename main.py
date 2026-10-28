@@ -138,6 +138,7 @@ def load_index() -> dict:
 
 
 def save_index(data: dict) -> None:
+    global _INDEX_CACHE
     ensure_dir(DATA_DIR)
     tmp = INDEX_PATH + ".tmp"
     with open(tmp, "w", encoding="utf-8") as fh:
@@ -150,7 +151,7 @@ def save_index(data: dict) -> None:
         pass
 
 
-@register("emotion_pics", "DSH", "情绪配图：按情绪给回复配一张图", "1.1.5")
+@register("emotion_pics", "DSH", "情绪配图：按情绪给回复配一张图", "1.1.6")
 class EmotionPics(Star):
     def __init__(self, context: Context, config=None) -> None:
         super().__init__(context)
