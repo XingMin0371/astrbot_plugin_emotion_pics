@@ -168,7 +168,7 @@ def save_index(data: dict) -> None:
         pass
 
 
-@register("emotion_pics", "DSH", "情绪配图：按情绪给回复配一张图", "1.1.7")
+@register("emotion_pics", "DSH", "情绪配图：按情绪给回复配一张图", "1.1.8")
 class EmotionPics(Star):
     def __init__(self, context: Context, config=None) -> None:
         super().__init__(context)
